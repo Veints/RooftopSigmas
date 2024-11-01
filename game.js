@@ -8,12 +8,12 @@ const playerHeight = 100;
 const bulletSpeed = 10;
 const knockback = 5;
 const shootCooldown = 500; // 500ms cooldown between shots
-const wobbleFactor = 0.05; // Factor for wobbling effect
+const wobbleSpeed = 0.05; // Speed of wobbling effect
 const platformHeight = 20;
 const platformWidth = 600;
 
-const player1 = { x: 100, y: 400, vx: 0, vy: 0, color: 'red', onGround: false, bullets: [], lastShot: 0, angle: 0, shooting: false };
-const player2 = { x: 650, y: 400, vx: 0, vy: 0, color: 'blue', onGround: false, bullets: [], lastShot: 0, angle: 0, shooting: false };
+const player1 = { x: 100, y: 400, vx: 0, vy: 0, color: 'red', onGround: false, bullets: [], lastShot: 0, angle: 0, shooting: false, shootPower: 0 };
+const player2 = { x: 650, y: 400, vx: 0, vy: 0, color: 'blue', onGround: false, bullets: [], lastShot: 0, angle: 0, shooting: false, shootPower: 0 };
 
 function drawPlayer(player) {
     ctx.save();
@@ -37,7 +37,6 @@ function drawPlatform() {
 function updatePlayer(player) {
     player.vy += gravity;
     player.y += player.vy;
-    player.x += player.vx;
 
     if (player.y + playerHeight > canvas.height - platformHeight && player.x + playerWidth > (canvas.width - platformWidth) / 2 && player.x < (canvas.width + platformWidth) / 2) {
         player.y = canvas.height - platformHeight - playerHeight;
@@ -48,11 +47,17 @@ function updatePlayer(player) {
     }
 
     // Apply wobbling effect
-    player.angle += (Math.random() - 0.5) * wobbleFactor;
+    player.angle = Math.sin(Date.now() * wobbleSpeed) * Math.PI / 4;
 
-    // Limit angle to prevent excessive rotation
-    if (player.angle > Math.PI / 4) player.angle = Math.PI / 4;
-    if (player.angle < -Math.PI / 4) player.angle = -Math.PI / 4;
+    // Prevent players from going through each other
+    if (player1.x < player2.x + playerWidth && player1.x + playerWidth > player2.x &&
+        player1.y < player2.y + playerHeight && player1.y + playerHeight > player2.y) {
+        if (player1.x < player2.x) {
+            player1.x = player2.x - playerWidth;
+        } else {
+            player2.x = player1.x - playerWidth;
+        }
+    }
 }
 
 function updateBullets(player, opponent) {
@@ -78,51 +83,37 @@ function handleInput() {
             player1.vy = jumpStrength;
             player1.vx = Math.sin(player1.angle) * 5;
         }
-        if (e.key === 'a') {
-            player1.vx = -5;
-        }
-        if (e.key === 'd') {
-            player1.vx = 5;
-        }
         if (e.key === ' ') {
             player1.shooting = true;
+            player1.shootPower += 0.1;
         }
         if (e.key === 'ArrowUp' && player2.onGround) {
             player2.vy = jumpStrength;
             player2.vx = Math.sin(player2.angle) * 5;
         }
-        if (e.key === 'ArrowLeft') {
-            player2.vx = -5;
-        }
-        if (e.key === 'ArrowRight') {
-            player2.vx = 5;
-        }
         if (e.key === 'Enter') {
             player2.shooting = true;
+            player2.shootPower += 0.1;
         }
     });
 
     document.addEventListener('keyup', (e) => {
-        if (e.key === 'a' || e.key === 'd') {
-            player1.vx = 0;
-        }
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-            player2.vx = 0;
-        }
         if (e.key === ' ') {
             player1.shooting = false;
             if (Date.now() - player1.lastShot > shootCooldown) {
                 const angle = player1.angle;
-                player1.bullets.push({ x: player1.x + playerWidth / 2, y: player1.y + playerHeight / 2, vx: bulletSpeed * Math.cos(angle), vy: bulletSpeed * Math.sin(angle), width: 10, height: 5, color: 'red' });
+                player1.bullets.push({ x: player1.x + playerWidth / 2, y: player1.y + playerHeight / 2, vx: -bulletSpeed * player1.shootPower, vy: -bulletSpeed * Math.sin(angle) * player1.shootPower, width: 10, height: 5, color: 'red' });
                 player1.lastShot = Date.now();
+                player1.shootPower = 0;
             }
         }
         if (e.key === 'Enter') {
             player2.shooting = false;
             if (Date.now() - player2.lastShot > shootCooldown) {
                 const angle = player2.angle;
-                player2.bullets.push({ x: player2.x + playerWidth / 2, y: player2.y + playerHeight / 2, vx: bulletSpeed * Math.cos(angle), vy: bulletSpeed * Math.sin(angle), width: 10, height: 5, color: 'blue' });
+                player2.bullets.push({ x: player2.x + playerWidth / 2, y: player2.y + playerHeight / 2, vx: bulletSpeed * player2.shootPower, vy: -bulletSpeed * Math.sin(angle) * player2.shootPower, width: 10, height: 5, color: 'blue' });
                 player2.lastShot = Date.now();
+                player2.shootPower = 0;
             }
         }
     });
